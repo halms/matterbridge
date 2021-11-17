@@ -196,6 +196,16 @@ func (b *Bsignald) HandleListenStoppedMessage() {
 	}
 }
 
+func (b *Bsignald) HandleProfile(msg signaldMessage) {
+	b.Log.Debugln("#################### HANDLE PROFILE")
+	var contact signaldContact
+	if err := json.Unmarshal(msg.Data, &contact); err != nil {
+		b.Log.Errorln("failed to parse profile: ", err)
+	} else {
+		b.contacts[contact.Account.UUID] = contact
+	}
+}
+
 func (b *Bsignald) HandleContactList(msg signaldMessage) {
 	var contacts []signaldContact
 	if err := json.Unmarshal(msg.Data, &contacts); err != nil {
@@ -216,7 +226,6 @@ func (b *Bsignald) GetUsername(uuid string) string {
 			username = v.Name
 		}
 	}
-
 	return username
 }
 
@@ -247,6 +256,7 @@ func (b *Bsignald) HandleMessage(msg signaldMessage) {
 	username := b.GetUsername(response.Data.Source.UUID)
 	if username == "" {
 		username = "Someone"
+		b.GetProfile(*response.Data.Source)
 	}
 
 	rmsg := config.Message{
@@ -280,6 +290,8 @@ func (b *Bsignald) Listen() {
 				continue
 			}
 
+			b.Log.Debugf("########## RECEIVED MESSAGE TYPE: %#v", msg.Type)
+
 			switch msg.Type {
 			case "unexpected_error":
 				b.HandleUnexpectedErrorMessage(msg)
@@ -287,6 +299,8 @@ func (b *Bsignald) Listen() {
 				b.HandleSubscribeMessage()
 			case "listen_stopped":
 				b.HandleListenStoppedMessage()
+			case "profile":
+				b.HandleProfile(msg)
 			case "contact_list":
 				b.HandleContactList(msg)
 			case "message":
@@ -304,6 +318,17 @@ func (b *Bsignald) GetContacts() error {
 		"username": b.GetString(cfgNumber),
 	}
 	return b.SendRawJSON(cmd)
+}
+
+func (b *Bsignald) GetProfile(account signaldAccount) error {
+	// cmd := JSONCMD{
+	// 	"type":     "get_profile",
+	// 	"address":  account,
+	// 	"username": b.GetString(cfgNumber),
+	// }
+	//str, _ := json.Marshal(cmd)
+	//return b.SendRawJSON(cmd)
+	return nil
 }
 
 func (b *Bsignald) Login() error {
