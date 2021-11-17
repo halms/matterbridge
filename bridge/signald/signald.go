@@ -126,7 +126,7 @@ type Bsignald struct {
 	socket     net.Conn
 	subscribed bool
 	reader     *bufio.Scanner
-	groupid    string
+	groupids   map[string]bool
 	contacts   map[string]signaldContact
 }
 
@@ -146,6 +146,7 @@ func New(cfg *bridge.Config) bridge.Bridger {
 		socketpath: socketpath,
 		subscribed: false,
 		contacts:   make(map[string]signaldContact),
+		groupids:   make(map[string]bool),
 	}
 }
 
@@ -167,7 +168,7 @@ func (b *Bsignald) Connect() error {
 }
 
 func (b *Bsignald) JoinChannel(channel config.ChannelInfo) error {
-	b.groupid = channel.Name
+	b.groupids[channel.Name] = true
 	return nil
 }
 
@@ -230,17 +231,14 @@ func (b *Bsignald) HandleMessage(msg signaldMessage) {
 		return
 	}
 
-	groupMatched := false
+	groupid := ""
 	if response.Data.DataMessage.GroupV2 != nil {
-		if b.groupid == response.Data.DataMessage.GroupV2.ID {
-			groupMatched = true
-		}
+		groupid = response.Data.DataMessage.GroupV2.ID
 	} else if response.Data.DataMessage.Group != nil {
-		if b.groupid == response.Data.DataMessage.Group.ID {
-			groupMatched = true
-		}
+		groupid = response.Data.DataMessage.Group.ID
 	}
 
+	groupMatched := b.groupids[groupid]
 	if !groupMatched {
 		b.Log.Debugln("skipping non-group message")
 		return
@@ -248,14 +246,14 @@ func (b *Bsignald) HandleMessage(msg signaldMessage) {
 
 	username := b.GetUsername(response.Data.Source.UUID)
 	if username == "" {
-		username = response.Data.Source.Number
+		username = "Someone"
 	}
 
 	rmsg := config.Message{
-		UserID:   response.Data.Source.UUID,
+		UserID:   response.Data.Source.Number,
 		Username: username,
 		Text:     response.Data.DataMessage.Body,
-		Channel:  b.groupid,
+		Channel:  groupid,
 		Account:  b.Account,
 		Protocol: b.Protocol,
 	}
@@ -340,7 +338,7 @@ func (b *Bsignald) Send(msg config.Message) (string, error) {
 	msgJSON := signaldSendMessage{
 		Type:             "send",
 		Username:         b.GetString(cfgNumber),
-		RecipientGroupID: b.groupid,
+		RecipientGroupID: msg.Channel,
 		MessageBody:      msg.Username + msg.Text,
 	}
 
