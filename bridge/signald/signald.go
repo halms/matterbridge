@@ -207,14 +207,14 @@ func (b *Bsignald) HandleProfile(msg signaldMessage) {
 }
 
 func (b *Bsignald) HandleContactList(msg signaldMessage) {
-	var contacts []signaldContact
-	if err := json.Unmarshal(msg.Data, &contacts); err != nil {
-		b.Log.Errorln("failed to parse contact_list: ", err)
-	} else {
-		for _, contact := range contacts {
-			b.contacts[contact.Account.UUID] = contact
-		}
-	}
+//	var contacts []signaldContact
+//	if err := json.Unmarshal(msg.Data, &contacts); err != nil {
+//		b.Log.Errorln("failed to parse contact_list: ", err)
+//	} else {
+//		for _, contact := range contacts {
+//			b.contacts[contact.Account.UUID] = contact
+//		}
+//	}
 }
 
 func (b *Bsignald) GetUsername(uuid string) string {
